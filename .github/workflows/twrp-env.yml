@@ -98,6 +98,9 @@ jobs:
       run: |
         cd android-recovery
         repo sync -j$(nproc --all) --force-sync
+        export USE_CCACHE=1
+        export CCACHE_EXEC=/usr/bin/ccache
+        ccache -M 50G
 
     - name: Include Recovery Installer
       if: inputs.RECOVERY_INSTALLER == true && inputs.MANIFEST_BRANCH != 'twrp-6.0' && inputs.BUILD_TARGET != 'vendorboot'
