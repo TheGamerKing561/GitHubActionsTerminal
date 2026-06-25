@@ -8,5 +8,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
+      - name: Install SSH server
+        run: |
+          sudo apt update
+          sudo apt install -y openssh-server
+          sudo service ssh start
+          sudo passwd -d runner
+
+      - name: Install cloudflared
+        run: |
+         wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+         sudo dpkg -i cloudflared-linux-amd64.deb
+
+      - name: Start Cloudflare Quick Tunnel
+        run: |
+          cloudflared tunnel --url ssh://localhost:22
