@@ -1,4 +1,4 @@
-name: OrangeFox - Build (new)
+name: Environment for building OrangeFox
 
 on:
   workflow_dispatch:
