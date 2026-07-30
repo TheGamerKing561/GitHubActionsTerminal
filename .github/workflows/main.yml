@@ -1,12 +1,42 @@
 name: Remote Terminal Session
-on: workflow_dispatch
+
+on:
+  workflow_dispatch:
+    inputs:
+      CLEANUP:
+        description: "Run storage cleanup"
+        type: boolean
+        required: true
+        default: false
+
+      SWAP_SPACE:
+        description: "Enable swap space"
+        type: boolean
+        required: true
+        default: false
+
+      SWAP_SIZE:
+        description: "Swap size (GB)"
+        required: true
+        default: "24"
 
 jobs:
   debug:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Clean up storage
+        if: ${{ inputs.CLEANUP }}
+        uses: rokibhasansagar/slimhub_actions@main
+
+      - name: Configure swap space
+        if: ${{ inputs.SWAP_SPACE }}
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: ${{ inputs.SWAP_SIZE }}
 
       - name: Install SSH server
         run: |
