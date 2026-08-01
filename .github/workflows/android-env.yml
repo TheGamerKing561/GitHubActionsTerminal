@@ -28,7 +28,7 @@ on:
  
       manifest_url:
          description: Extra manifest XML URL
-         required: true
+         required: false
          type: string
 
 jobs:
