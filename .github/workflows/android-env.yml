@@ -125,12 +125,13 @@ jobs:
           mkdir rom
           cd rom
           repo init \
-            -u "${{ inputs.lineage_manifest }}" \
+            -u "${{ inputs.rom_manifest }}" \
             -b "${{ inputs.branch }}" \
             --git-lfs \
             --depth=1
 
       - name: Download local manifest
+        if: github.event.inputs.manifest_url != ''
         run: |
           cd rom
           mkdir -p .repo/local_manifests
