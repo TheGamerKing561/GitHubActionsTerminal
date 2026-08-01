@@ -1,0 +1,166 @@
+name: Environment for building Android
+
+on:
+  workflow_dispatch:
+    inputs:
+      SWAP_SPACE:
+        description: "Enable swap space"
+        type: boolean
+        required: true
+        default: false
+
+      SWAP_SIZE:
+        description: "Swap size (GB)"
+        required: true
+        default: "24"
+
+      rom_manifest:
+         description: ROM manifest URL
+         default: https://github.com/LineageOS/android.git
+         required: true
+         type: string
+ 
+      branch:
+         description: ROM manifest branch
+         default: lineage-17.1
+         required: true
+         type: string
+ 
+      manifest_url:
+         description: Extra manifest XML URL
+         required: true
+         type: string
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run cleanup
+        uses: justinthelaw/maximize-github-runner-space@main
+
+      - name: Run second cleanup
+        uses: rokibhasansagar/slimhub_actions@main
+
+      - name: Configure swap space
+        if: ${{ inputs.SWAP_SPACE }}
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: ${{ inputs.SWAP_SIZE }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            bc \
+            bison \
+            build-essential \
+            ccache \
+            curl \
+            flex \
+            g++-multilib \
+            gcc-multilib \
+            git \
+            git-lfs \
+            gh \
+            gnupg \
+            gperf \
+            imagemagick \
+            protobuf-compiler \
+            python3-protobuf \
+            lib32readline-dev \
+            lib32z1-dev \
+            libdw-dev \
+            libelf-dev \
+            libgnutls28-dev \
+            lz4 \
+            libsdl1.2-dev \
+            libssl-dev \
+            libxml2 \
+            libxml2-utils \
+            lzop \
+            pngcrush \
+            rsync \
+            schedtool \
+            squashfs-tools \
+            xsltproc \
+            xxd \
+            zip \
+            zlib1g-dev
+
+          sudo apt install -y screen
+          wget https://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2_amd64.deb && sudo dpkg -i libtinfo5_6.3-2_amd64.deb && rm -f libtinfo5_6.3-2_amd64.deb
+          wget https://archive.ubuntu.com/ubuntu/pool/universe/n/ncurses/libncurses5_6.3-2_amd64.deb && sudo dpkg -i libncurses5_6.3-2_amd64.deb && rm -f libncurses5_6.3-2_amd64.deb
+
+      - name: Install repo tool
+        run: |
+          mkdir -p ~/bin
+          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+          chmod +x ~/bin/repo
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "TheGamerKing"
+          git config --global user.email "eyadtamer2121@gmail.com"
+          git config --global trailer.changeid.key "Change-Id"
+
+      - name: Configure Git LFS
+        run: git lfs install
+
+      - name: Authenticate GitHub CLI
+        env:
+          GH_AUTH_TOKEN: ${{ secrets.GH_AUTH_TOKEN }}
+        run: |
+          echo "$GH_AUTH_TOKEN" | gh auth login --with-token
+          gh auth status
+          gh auth setup-git
+          gh auth status
+
+      - name: Initialize source
+        run: |
+          mkdir rom
+          cd rom
+          repo init \
+            -u "${{ inputs.lineage_manifest }}" \
+            -b "${{ inputs.branch }}" \
+            --git-lfs \
+            --depth=1
+
+      - name: Download local manifest
+        run: |
+          cd rom
+          mkdir -p .repo/local_manifests
+          curl -L "${{ inputs.manifest_url }}" \
+            -o .repo/local_manifests/extra.xml
+
+      - name: Sync sources
+        run: |
+          cd rom
+          repo sync \
+            -c \
+            -j"$(nproc --all)" \
+            --force-sync \
+            --no-clone-bundle \
+            --no-tags \
+            --optimized-fetch \
+            --prune
+
+      - name: Install SSH server
+        run: |
+          sudo apt update
+          sudo apt install -y openssh-server
+          sudo service ssh start
+          echo "runner:${{ secrets.userpassword }}" | sudo chpasswd
+
+      - name: Install cloudflared
+        run: |
+         wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+         sudo dpkg -i cloudflared-linux-amd64.deb
+
+      - name: Start Cloudflare Quick Tunnel
+        run: |
+          cloudflared tunnel --url ssh://localhost:22
